@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Case Details</title>
+</head>
+<body>
+    <h1>Case Details</h1>
+    <p><strong>Parties:</strong> {{ data.parties }}</p>
+    <p><strong>Filing Date:</strong> {{ data.filing_date }}</p>
+    <p><strong>Next Hearing Date:</strong> {{ data.next_hearing_date }}</p>
+    <p><strong>Status:</strong> {{ data.case_status }}</p>
+
+    {% if data.judgment_link %}
+        <p>
+            <strong>Download Judgment/Order:</strong>
+            <a href="{{ data.judgment_link }}" target="_blank">Download PDF</a>
+        </p>
+    {% else %}
+        <p>No judgment/order found for download.</p>
+    {% endif %}
+
+    <br>
+    <a href="/">Search another case</a>
+</body>
+</html>

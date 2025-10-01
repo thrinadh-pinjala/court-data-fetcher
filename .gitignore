@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Environments
+venv/
+.env
+
+# SQLite databases
+*.db
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Flask instance folder
+instance/
+
+# byte-compiled
+*.pyc

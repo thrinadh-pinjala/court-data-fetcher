@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Solve CAPTCHA</title>
+</head>
+<body>
+    <h1>Solve CAPTCHA to Proceed</h1>
+    <p>
+        <strong>Case Details:</strong>
+        {{ case_details.type }} No. {{ case_details.number }} of {{ case_details.year }}
+    </p>
+    
+    <img src="{{ url_for('static', filename=captcha_image_file) }}" alt="CAPTCHA Image">
+    <br><br>
+    
+    <form action="/submit_captcha" method="post">
+        <input type="hidden" name="case_type" value="{{ case_details.type }}">
+        <input type="hidden" name="case_number" value="{{ case_details.number }}">
+        <input type="hidden" name="case_year" value="{{ case_details.year }}">
+        
+        <label for="captcha">Enter CAPTCHA Text:</label><br>
+        <input type="text" id="captcha" name="captcha" required autocomplete="off">
+        <br><br>
+        <button type="submit">Get Case Details</button>
+    </form>
+</body>
+</html>
