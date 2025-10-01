@@ -6,6 +6,20 @@ import datetime
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from scraper import get_captcha, fetch_ecourts_data, fetch_search_form
+from causelist_scraper import fetch_causelist_content, parse_causelist_html, parse_causelist_pdf_bytes
+import logging
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    HAVE_APSCHED = True
+except Exception:
+    BackgroundScheduler = None
+    HAVE_APSCHED = False
+from sqlalchemy import Boolean
+
+try:
+    from weasyprint import HTML
+except Exception:
+    HTML = None
 
 # --- App and Database Setup ---
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -90,8 +104,80 @@ class CaseQuery(db.Model):
     raw_response = db.Column(db.Text, nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
+
+class Watch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    monitor_url = db.Column(db.String(1024), nullable=False)
+    case_identifier = db.Column(db.String(256), nullable=False)  # what to search for (CNR or case no or party)
+    email = db.Column(db.String(256), nullable=True)
+    days_before = db.Column(db.Integer, default=1)
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    last_notified = db.Column(db.DateTime, nullable=True)
+
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    watch_id = db.Column(db.Integer, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    matched_text = db.Column(db.Text, nullable=True)
+    cause_url = db.Column(db.String(1024), nullable=True)
+
 with app.app_context():
     db.create_all()
+
+# Scheduler setup (do not start during testing)
+scheduler = BackgroundScheduler() if HAVE_APSCHED else None
+
+
+def check_watches():
+    """Scheduled job that checks monitor URLs for matching cases."""
+    with app.app_context():
+        watches = Watch.query.filter_by(active=True).all()
+        for w in watches:
+            try:
+                res = fetch_causelist_content(None, w.monitor_url)
+                parsed = []
+                if res['type'] == 'html':
+                    parsed = parse_causelist_html(res['content'])
+                elif res['type'] == 'pdf':
+                    try:
+                        parsed = parse_causelist_pdf_bytes(res['content'])
+                    except Exception as e:
+                        logging.exception('PDF parse failed for %s: %s', w.monitor_url, e)
+                        parsed = []
+
+                # naive matching: check if case_identifier substring exists in case_ref or parties
+                for entry in parsed:
+                    hay = (entry.get('case_ref', '') + ' ' + entry.get('parties', '')).lower()
+                    if w.case_identifier.lower() in hay:
+                        # create a notification record
+                        note = Notification(watch_id=w.id, matched_text=str(entry)[:200], cause_url=w.monitor_url)
+                        db.session.add(note)
+                        # mark last_notified
+                        w.last_notified = datetime.datetime.utcnow()
+                        db.session.commit()
+                        logging.info('Watch %s matched on URL %s', w.id, w.monitor_url)
+                        break
+            except Exception:
+                logging.exception('Failed checking watch %s', w.id)
+
+
+def start_scheduler():
+    # don't start in test mode
+    if app.config.get('TESTING'):
+        return
+    if not HAVE_APSCHED or scheduler is None:
+        logging.info('APScheduler not available; scheduler disabled')
+        return
+    # scheduler exists
+    try:
+        running = getattr(scheduler, 'running', False)
+    except Exception:
+        running = False
+    if not running:
+        scheduler.add_job(check_watches, 'interval', minutes=1, id='check_watches')
+        scheduler.start()
 
 # --- Web Routes ---
 
@@ -207,5 +293,65 @@ def debug_form():
         'method': initial.get('method')
     }
 
+
+@app.route('/watches', methods=['GET', 'POST'])
+def watches_view():
+    if request.method == 'POST':
+        monitor_url = request.form.get('monitor_url')
+        case_identifier = request.form.get('case_identifier')
+        email = request.form.get('email')
+        days_before = int(request.form.get('days_before') or 1)
+        w = Watch(monitor_url=monitor_url, case_identifier=case_identifier, email=email, days_before=days_before)
+        db.session.add(w)
+        db.session.commit()
+        return redirect(url_for('watches_view'))
+
+    watches = Watch.query.order_by(Watch.created_at.desc()).all()
+    return render_template('watch.html', watches=watches)
+
+
+@app.route('/watches/<int:watch_id>')
+def watch_detail(watch_id):
+    w = Watch.query.get_or_404(watch_id)
+    notes = Notification.query.filter_by(watch_id=watch_id).order_by(Notification.timestamp.desc()).limit(20).all()
+    return render_template('watch_detail.html', watch=w, notifications=notes)
+
+
+@app.route('/causelist/to_pdf')
+def causelist_to_pdf():
+    """Fetch a cause-list URL and return a PDF. Query param: url=<monitor_url>
+
+    If the URL is already a PDF, return it directly. If it's HTML, parse entries and render
+    a simple HTML template then convert to PDF using WeasyPrint (if available).
+    """
+    url = request.args.get('url')
+    if not url:
+        return 'Missing url parameter', 400
+    try:
+        res = fetch_causelist_content(None, url)
+    except Exception as e:
+        return f'Failed to fetch URL: {e}', 500
+
+    if res['type'] == 'pdf':
+        # return raw PDF bytes
+        return (res['content'], 200, {'Content-Type': 'application/pdf'})
+
+    # HTML: parse and render template
+    parsed = parse_causelist_html(res['content'])
+    html_out = render_template('causelist.html', entries=parsed, source_url=url)
+
+    if HTML is None:
+        # WeasyPrint not available, return HTML instead
+        return html_out
+
+    try:
+        pdf_bytes = HTML(string=html_out).write_pdf()
+        return (pdf_bytes, 200, {'Content-Type': 'application/pdf'})
+    except Exception as e:
+        logging.exception('WeasyPrint failed: %s', e)
+        return html_out
+
 if __name__ == '__main__':
+    # start background scheduler when running directly
+    start_scheduler()
     app.run(debug=True)

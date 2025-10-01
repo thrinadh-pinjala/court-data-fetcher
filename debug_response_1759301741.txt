@@ -1,0 +1,27 @@
+URL: https://hcservices.ecourts.gov.in/hcservices/cases_qry/index_qry.php?action_code=showRecords
+STATUS: 200
+HEADERS:
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Date: Wed, 01 Oct 2025 06:55:41 GMT
+Server: 
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Cache-Control: no-store, no-cache, must-revalidate, max-age=86400
+Pragma: no-cache
+Referrer-Policy: strict-origin
+Expect-CT: max-age=3600, enforce
+X-XSS-Protection: 1; mode=block
+x-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+content_security_policy: script-src 'self'; object-src 'self'; img-src 'self'
+Keep-Alive: timeout=5, max=100
+Connection: Keep-Alive
+Content-Type: text/html; charset=UTF-8
+Content-Length: 24
+
+---RAW_RESPONSE_START---
+﻿{"Error":"ERROR_VAL"}
+---FORM_DATA_SUBMITTED---
+{'cino': 'HCTN01', 'case_type': 'WP(WRIT PETITION)-63', 'case_no': '15283', 'year': '2023', 'captcha_code': '3nb9rb', 'status': 'B'}
+
+---COOKIES_IN_SESSION---
+{'HCSERVICES_SESSID': '3jv7bb80eqdoq9d12vtu0l083t', 'JSESSION': '31407807'}

@@ -3,13 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>Case Details</title>
+    <style>
+        :root{--bg:#0b0f14;--text:#e6f7ff;--neon:#00e5ff;--muted:#9fb5c8}
+        body{background:var(--bg);color:var(--text);font-family:Segoe UI,Arial,Helvetica,sans-serif;padding:20px}
+        .card{background:linear-gradient(135deg, rgba(255,255,255,0.02), rgba(0,0,0,0.2));border:2px solid var(--neon);padding:16px;border-radius:8px}
+        a{color:var(--neon)}
+        p{color:var(--muted)}
+    </style>
 </head>
 <body>
-    <h1>Case Details</h1>
-    <p><strong>Parties:</strong> {{ data.parties }}</p>
-    <p><strong>Filing Date:</strong> {{ data.filing_date }}</p>
-    <p><strong>Next Hearing Date:</strong> {{ data.next_hearing_date }}</p>
-    <p><strong>Status:</strong> {{ data.case_status }}</p>
+    <div class="card">
+        <h1>Case Details</h1>
+        <p><strong>Parties:</strong> {{ data.parties }}</p>
+        <p><strong>Filing Date:</strong> {{ data.filing_date }}</p>
+        <p><strong>Next Hearing Date:</strong> {{ data.next_hearing_date }}</p>
+        <p><strong>Status:</strong> {{ data.case_status }}</p>
 
     {% if data.judgment_link %}
         <p>

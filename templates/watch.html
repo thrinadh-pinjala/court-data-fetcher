@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Watches</title>
+  <style>body{font-family:Segoe UI,Arial,Helvetica,sans-serif;padding:20px}</style>
+</head>
+<body>
+  <h1>Watches</h1>
+  <form method="post">
+    <label>Monitor URL: <input name="monitor_url" required style="width:60%"></label><br>
+    <label>Case identifier (CNR or case no or party): <input name="case_identifier" required></label><br>
+    <label>Email (optional): <input name="email"></label><br>
+    <label>Days before (default 1): <input name="days_before" type="number" value="1"></label><br>
+    <button type="submit">Create Watch</button>
+  </form>
+
+  <h2>Existing Watches</h2>
+  <ul>
+  {% for w in watches %}
+    <li>
+      <a href="/watches/{{ w.id }}">Watch #{{ w.id }}</a> - {{ w.case_identifier }} @ {{ w.monitor_url }} - Active: {{ w.active }}
+    </li>
+  {% endfor %}
+  </ul>
+</body>
+</html>

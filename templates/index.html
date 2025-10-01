@@ -295,6 +295,20 @@
                 setActiveCriteria(defaultButton);
             }
         };
+        
+        // Sync the selected state's dataset.cino into the hidden cino input used by the server
+        function syncCinoHidden() {
+            const stateSelect = document.getElementById('state');
+            const cinoInput = document.getElementById('cino_input');
+            if (!stateSelect || !cinoInput) return;
+            const opt = stateSelect.options[stateSelect.selectedIndex];
+            if (opt && opt.dataset && opt.dataset.cino) {
+                cinoInput.value = opt.dataset.cino;
+            } else {
+                // if there is no data-cino, keep the human-readable label
+                cinoInput.value = stateSelect.value || '';
+            }
+        }
     </script>
 </head>
 <body>

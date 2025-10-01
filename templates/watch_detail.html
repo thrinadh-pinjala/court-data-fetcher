@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Watch {{ watch.id }}</title>
+  <style>body{font-family:Segoe UI,Arial,Helvetica,sans-serif;padding:20px}</style>
+</head>
+<body>
+  <h1>Watch #{{ watch.id }}</h1>
+  <p><strong>Monitor:</strong> {{ watch.monitor_url }}</p>
+  <p><strong>Case identifier:</strong> {{ watch.case_identifier }}</p>
+  <p><strong>Email:</strong> {{ watch.email }}</p>
+  <p><strong>Active:</strong> {{ watch.active }}</p>
+
+  <h2>Notifications</h2>
+  <ul>
+  {% for n in notifications %}
+    <li>{{ n.timestamp }} - {{ n.matched_text }}</li>
+  {% else %}
+    <li>No notifications yet.</li>
+  {% endfor %}
+  </ul>
+</body>
+</html>
