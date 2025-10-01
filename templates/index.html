@@ -4,6 +4,25 @@
     <meta charset="UTF-8">
     <title>Court Case Fetcher</title>
     <style>
+        /* Dark theme with neon borders */
+        :root{
+            --bg:#0b0f14;
+            --surface:#0f1720;
+            --text:#e6f7ff;
+            --muted:#9fb5c8;
+            --neon:#00e5ff;
+            --accent:#7cffb2;
+        }
+        html,body{background:var(--bg);color:var(--text);font-family:Segoe UI,Arial,Helvetica,sans-serif;margin:0;padding:20px}
+        a{color:var(--accent)}
+        .card{background:linear-gradient(135deg, rgba(255,255,255,0.02), rgba(0,0,0,0.2));border:2px solid var(--neon);padding:16px;border-radius:8px}
+        select,input,button{background:transparent;color:var(--text);border:2px solid rgba(0,229,255,0.12);padding:8px;border-radius:6px}
+        select:focus,input:focus,button:focus{outline:none;box-shadow:0 0 8px rgba(0,229,255,0.12)}
+        .search-criteria-tabs button{background:transparent;border:1px solid rgba(124,255,178,0.08);color:var(--text)}
+        .search-criteria-tabs button.active{background:rgba(0,229,255,0.06);border-color:var(--neon)}
+        label{display:block;margin-top:8px;color:var(--muted)}
+    </style>
+    <style>
         .search-criteria-tabs {
             margin-top: 10px;
         }
@@ -21,42 +40,59 @@
         }
     </style>
     <script>
-        // Bench options for each High Court (example data, can be expanded)
+        // benchOptions fallback kept for offline UI but primary source is server
         const benchOptions = {
             "Andhra Pradesh": ["Select Bench", "Principal Bench", "Amaravati Bench", "Visakhapatnam Bench"],
-            "Karnataka": ["Select Bench", "Principal Bench", "Bangalore Bench", "Mysore Bench"],
-            "Maharashtra": ["Select Bench", "Principal Bench", "Mumbai Bench", "Nagpur Bench"],
-            "Tamil Nadu": ["Select Bench", "Principal Bench", "Chennai Bench", "Madurai Bench"],
-            "Delhi": ["Select Bench", "Principal Bench"],
-            "Uttar Pradesh": ["Select Bench", "Principal Bench", "Lucknow Bench", "Allahabad Bench"],
-            // Add other states and benches as needed
         };
 
         function updateBenchOptions() {
-            const stateSelect = document.getElementById('state');
+        const stateSelect = document.getElementById('state');
             const benchSelect = document.getElementById('bench');
             const selectedState = stateSelect.value;
 
             // Clear existing options
             benchSelect.innerHTML = '';
 
-            if (benchOptions[selectedState]) {
-                benchOptions[selectedState].forEach(function(bench) {
+            // Fetch bench options from backend. The backend will return label/value pairs
+            // where value is the real select option value (e.g. cino codes or bench ids).
+            fetch(`/api/bench_options?state=${encodeURIComponent(selectedState)}`)
+                .then(response => response.json())
+                    .then(data => {
+                        const options = data.options || [];
+                        if (options.length === 0) {
+                            // If backend returned no options, provide a sensible default for Andhra Pradesh
+                            if (selectedState && selectedState.toLowerCase().indexOf('andhra') !== -1) {
+                                const opt = document.createElement('option');
+                                opt.value = 'Principal Bench at Andhra Pradesh';
+                                opt.text = 'Principal Bench at Andhra Pradesh';
+                                benchSelect.appendChild(opt);
+                                benchSelect.value = opt.value;
+                            } else {
+                                const option = document.createElement('option');
+                                option.value = '';
+                                option.text = 'Select Bench';
+                                benchSelect.appendChild(option);
+                            }
+                        } else {
+                            options.forEach(function(opt) {
+                                const option = document.createElement('option');
+                                option.value = opt.value;
+                                option.text = opt.label;
+                                benchSelect.appendChild(option);
+                            });
+                        }
+                })
+                .catch(() => {
                     const option = document.createElement('option');
-                    option.value = bench === "Select Bench" ? "" : bench;
-                    option.text = bench;
+                    option.value = '';
+                    option.text = 'Select Bench';
                     benchSelect.appendChild(option);
                 });
-            } else {
-                const option = document.createElement('option');
-                option.value = '';
-                option.text = 'Select Bench';
-                benchSelect.appendChild(option);
-            }
         }
 
         // Search criteria tabs logic
         const criteriaFields = {
+            "CNR Number": {label: "CNR Number", id: "cino", type: "text"},
             "Party Name": {label: "Party Name", id: "party_name", type: "text"},
             "Case Number": [
                 {label: "Case Type", id: "case_type", type: "text"},
@@ -67,8 +103,94 @@
             "Advocate Name": {label: "Advocate Name", id: "advocate_name", type: "text"},
             "FIR Number": {label: "FIR Number", id: "fir_number", type: "text"},
             "Act": {label: "Act", id: "act", type: "text"},
-            "Case Type": {label: "Case Type", id: "case_type_only", type: "text"}
+            "Case Type": {label: "Case Type", id: "case_type_only", type: "select"}
         };
+
+        // List of case types (label shown to user, value is the numeric code seen in site)
+        const caseTypes = [
+            {v: '', l: 'Select Case Type'},
+            {v: '1', l: 'APPL(APPLICATION IN CIVIL SUIT)-1'},
+            {v: '2', l: 'ARBAPPL(ARBITRATION APPLICATION)-2'},
+            {v: '3', l: 'AS(FIRST APPEAL)-3'},
+            {v: '4', l: 'CA(CONTEMPT APPEAL)-4'},
+            {v: '5', l: 'CAPPEAL(COMPANY APPEAL)-5'},
+            {v: '6', l: 'CC(CONTEMPT CASE)-6'},
+            {v: '82', l: 'CC(AT)(CONTEMPT CASE TRANSFERED FROM APAT)-82'},
+            {v: '7', l: 'CCCA(CITY CIVIL COURT APPEAL)-7'},
+            {v: '8', l: 'CC(TR)(CONTEMPT CASE TRANSFERED)-8'},
+            {v: '9', l: 'CEA(CENTRAL EXCISE APPEALS)-9'},
+            {v: '10', l: 'CERC(CUSTOMS EXCISE REVISION CASE)-10'},
+            {v: '11', l: 'CETC(CENTRAL EXCISE TAX CASE)-11'},
+            {v: '12', l: 'CMA(CIVIL MISCELLANEOUS APPEAL)-12'},
+            {v: '13', l: 'CMSA(CIVIL MISCELLANEOUS SECOND APPEAL)-13'},
+            {v: '79', l: 'COMAA(COMMERCIAL ARBITRATION APPEAL)-79'},
+            {v: '78', l: 'COMOA(COMMERCIAL ARBITRATION ORIGINAL APPLICATION)-78'},
+            {v: '14', l: 'COMCA(COMMERCIAL COURT APPEAL)-14'},
+            {v: '76', l: 'COMDA(COMMERCIAL APPEAL)-76'},
+            {v: '68', l: 'COMOP(COMMERCIAL ORIGINAL PETITION)-68'},
+            {v: '15', l: 'COMPA(COMPANY APPLICATION)-15'},
+            {v: '16', l: 'COMS(COMMERCIAL SUIT)-16'},
+            {v: '17', l: 'COMTA(COMMERCIAL TRANSFER APPLICATION)-17'},
+            {v: '77', l: 'COMTOA(TRANSFER APPLICATION BEFORE COMMERCIAL APPELLATE DIVISION)-77'},
+            {v: '18', l: 'CP(COMPANY PETITION)-18'},
+            {v: '19', l: 'CRLA(CRIMINAL APPEAL)-19'},
+            {v: '72', l: 'CRLATR(CRIMINAL APPEAL TRANSFER)-72'},
+            {v: '20', l: 'CRLMP(CRIMINAL MISCELLANEOUS PETITION)-20'},
+            {v: '21', l: 'CRLP(CRIMINAL PETITION)-21'},
+            {v: '22', l: 'CRLRC(CRIMINAL REVISION CASE)-22'},
+            {v: '23', l: 'CRP(CIVIL REVISION PETITION)-23'},
+            {v: '24', l: 'CS(CIVIL SUIT)-24'},
+            {v: '71', l: 'EC(ENQUIRY CELL)-71'},
+            {v: '25', l: 'EDC(ESTATE DUTY CASE)-25'},
+            {v: '26', l: 'EP(ELECTION PETITION)-26'},
+            {v: '27', l: 'EPTC(EXCESS PROFIT TAX CASE)-27'},
+            {v: '28', l: 'EXEP(EXECUTION PETITION)-28'},
+            {v: '29', l: 'FCA(FAMILY COURT APPEAL (FCA))-29'},
+            {v: '30', l: 'GTC(GIFT TAX CASE)-30'},
+            {v: '75', l: 'ICOMAA(INTERNATIONAL COMMERCIAL ARBITRATION APPEAL)-75'},
+            {v: '69', l: 'ICOMAOA(INTERNATIONAL COMMERCIAL ARBITRATION ORIGINAL APPLICATION)-69'},
+            {v: '31', l: 'ITC(INCOME TAX CASE)-31'},
+            {v: '32', l: 'ITTA(INCOME TAX TRIBUNAL APPEAL)-32'},
+            {v: '33', l: 'LAAS(LAND ACQUISITION FIRST APPEAL)-33'},
+            {v: '34', l: 'LGA(LAND GRABBING APPEAL)-34'},
+            {v: '35', l: 'LPA(LETTER PATENT APPEAL)-35'},
+            {v: '36', l: 'MACMA(MOTOR ACCIDENT CIVIL MISCELLANEOUS APPEAL)-36'},
+            {v: '37', l: 'OP(ORIGINAL PETITION)-37'},
+            {v: '38', l: 'OSA(ORIGINAL SIDE APPEAL)-38'},
+            {v: '39', l: 'PIL(PUBLIC INTEREST LITIGATION)-39'},
+            {v: '40', l: 'RC(REFERRED CASE)-40'},
+            {v: '41', l: 'RCC(REFERRED COMPANY CASE)-41'},
+            {v: '42', l: 'RECR(RECRIMINATION PETITION)-42'},
+            {v: '43', l: 'REFCRLA(REFERRED CRLA)-43'},
+            {v: '74', l: 'RESLGAIA(RESTORATION LAND GRABBING APPLICATION)-74'},
+            {v: '44', l: 'RESWPMP(TR)(WPMP TRANSFERRED)-44'},
+            {v: '80', l: 'REV.CMP(REV.CMP)-80'},
+            {v: '45', l: 'REVWP(TR)MP(REVIEW WP(TR))-45'},
+            {v: '46', l: 'RT(REFERRED TRIAL)-46'},
+            {v: '48', l: 'RTP(RECEIVE AND TRANSMIT PETITION)-48'},
+            {v: '49', l: 'SA(SECOND APPEAL)-49'},
+            {v: '50', l: 'SCLP(SUPREME COURT LEAVE PETITION)-50'},
+            {v: '51', l: 'SPLA(SPECIAL APPEAL)-51'},
+            {v: '52', l: 'STA(SPECIAL TRIBUNAL APPEAL)-52'},
+            {v: '53', l: 'TRAS(TRANSFER APPEAL)-53'},
+            {v: '54', l: 'TRC(TAX REVISION CASE)-54'},
+            {v: '55', l: 'TRCCCA(TRANSFER CCCA)-55'},
+            {v: '56', l: 'TRCMA(TRANSFER .CIVIL MISC.APPEAL)-56'},
+            {v: '57', l: 'TRCMP(TRANS. CIVIL MISC.PETITION)-57'},
+            {v: '58', l: 'TRCRLA(TRANSFER CRIMINAL APPEAL)-58'},
+            {v: '59', l: 'TRCRLMP(TRANS. CRIMINAL MISC.PETITION)-59'},
+            {v: '60', l: 'TRCRLP(TRANSFER CRIMINAL PETITION)-60'},
+            {v: '61', l: 'TREV C(TAX REVISION CASE)-61'},
+            {v: '73', l: 'TRICOMAOA(TRANSFER INTERNATIONAL COMMERCIAL ARBITRATION ORIGINAL APPLICATION)-73'},
+            {v: '62', l: 'WA(WRIT APPEAL)-62'},
+            {v: '63', l: 'WP(WRIT PETITION)-63'},
+            {v: '81', l: 'WP(AT)(WRIT PETITION TRANSFERED FROM APAT)-81'},
+            {v: '64', l: 'WP(PIL)(WP(PIL))-64'},
+            {v: '65', l: 'WP(TR)(WRIT PETITION TRANSFERED)-65'},
+            {v: '66', l: 'WTA(WEALTH TAX APPEAL)-66'},
+            {v: '67', l: 'WTC(WEALTH TAX CASE)-67'},
+            {v: '70', l: 'X-OBJ(Cross Objection)-70'}
+        ];
 
         function setActiveCriteria(button) {
             // Remove active class from all buttons
@@ -104,20 +226,69 @@
                 const label = document.createElement('label');
                 label.setAttribute('for', field.id);
                 label.textContent = field.label + ':';
-                const input = document.createElement('input');
-                input.type = field.type;
-                input.id = field.id;
-                input.name = field.id;
-                input.required = true;
                 container.appendChild(label);
                 container.appendChild(document.createElement('br'));
-                container.appendChild(input);
+                if (field.type === 'select') {
+                    const select = document.createElement('select');
+                    select.id = field.id;
+                    select.name = field.id;
+                    select.required = true;
+                    // populate from caseTypes
+                    caseTypes.forEach(ct => {
+                        const opt = document.createElement('option');
+                        opt.value = ct.v;
+                        opt.textContent = ct.l;
+                        select.appendChild(opt);
+                    });
+                    container.appendChild(select);
+                } else {
+                    const input = document.createElement('input');
+                    input.type = field.type;
+                    input.id = field.id;
+                    input.name = field.id;
+                    input.required = true;
+                    container.appendChild(input);
+                }
                 container.appendChild(document.createElement('br'));
             }
         }
 
         window.onload = function() {
-            updateBenchOptions();
+                // Populate high court options by requesting the server for the real option values
+                const stateSelect = document.getElementById('state');
+                // Fetch high court options (label/value) from backend and populate the select
+                fetch('/api/highcourt_options')
+                    .then(r => r.json())
+                    .then(data => {
+                        const opts = data.options || [];
+                        if (opts.length) {
+                            // clear and populate
+                            stateSelect.innerHTML = '';
+                            const placeholder = document.createElement('option');
+                            placeholder.value = '';
+                            placeholder.text = 'Select High Court';
+                            stateSelect.appendChild(placeholder);
+                            opts.forEach(o => {
+                                const opt = document.createElement('option');
+                                // Keep the option value as the human label so forms remain readable,
+                                // but store the real cino/code value on a data attribute so we can
+                                // submit it in a hidden input.
+                                opt.value = o.label; // human label
+                                opt.text = o.label;  // human label shown to user
+                                opt.dataset.cino = o.value; // real code used by ecourts
+                                stateSelect.appendChild(opt);
+                            });
+                        }
+                        // after populating, sync hidden cino and update bench options for current selection
+                        syncCinoHidden();
+                        updateBenchOptions();
+                    })
+                    .catch(() => {
+                        // fallback to prepopulated HTML options
+                        // ensure hidden cino is set for the fallback selection
+                        syncCinoHidden();
+                        updateBenchOptions();
+                    });
             // Set default active criteria to "Case Number"
             const defaultButton = document.querySelector('.search-criteria-tabs button[data-criteria="Case Number"]');
             if (defaultButton) {
@@ -129,37 +300,45 @@
 <body>
     <h1>Indian Court Case Fetcher</h1>
     <form action="/fetch" method="post">
-        <label for="state">State/Court:</label><br>
-        <select id="state" name="state" required onchange="updateBenchOptions()">
-            <option value="">Select State</option>
-            <option value="Andhra Pradesh">Andhra Pradesh</option>
-            <option value="Karnataka">Karnataka</option>
-            <option value="Maharashtra">Maharashtra</option>
-            <option value="Tamil Nadu">Tamil Nadu</option>
-            <option value="Delhi">Delhi</option>
-            <option value="Uttar Pradesh">Uttar Pradesh</option>
-            <option value="West Bengal">West Bengal</option>
-            <option value="Gujarat">Gujarat</option>
-            <option value="Rajasthan">Rajasthan</option>
-            <option value="Madhya Pradesh">Madhya Pradesh</option>
-            <option value="Punjab">Punjab</option>
-            <option value="Haryana">Haryana</option>
-            <option value="Bihar">Bihar</option>
-            <option value="Odisha">Odisha</option>
-            <option value="Telangana">Telangana</option>
-            <option value="Kerala">Kerala</option>
-            <option value="Jharkhand">Jharkhand</option>
-            <option value="Chhattisgarh">Chhattisgarh</option>
-            <option value="Uttarakhand">Uttarakhand</option>
-            <option value="Himachal Pradesh">Himachal Pradesh</option>
-            <option value="Jammu and Kashmir">Jammu and Kashmir</option>
-            <option value="Goa">Goa</option>
-            <option value="Puducherry">Puducherry</option>
-            <option value="Chandigarh">Chandigarh</option>
-            <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
-            <option value="Lakshadweep">Lakshadweep</option>
-            <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+        <label for="state">High Court:</label><br>
+        <select id="state" name="state" required onchange="syncCinoHidden(); updateBenchOptions()">
+            <option value="">Select High Court</option>
+            <option>Allahabad High Court</option>
+            <option>Bombay High Court</option>
+            <option>Calcutta High Court</option>
+            <option>Gauhati High Court</option>
+            <option>High Court for State of Telangana</option>
+            <option>High Court of Andhra Pradesh</option>
+            <option>High Court of Chhattisgarh</option>
+            <option>High Court of Delhi</option>
+            <option>High Court of Gujarat</option>
+            <option>High Court of Himachal Pradesh</option>
+            <option>High Court of Jammu and Kashmir</option>
+            <option>High Court of Jharkhand</option>
+            <option>High Court of Karnataka</option>
+            <option>High Court of Kerala</option>
+            <option>High Court of Madhya Pradesh</option>
+            <option>High Court of Manipur</option>
+            <option>High Court of Meghalaya</option>
+            <option>High Court of Orissa</option>
+            <option>High Court of Punjab and Haryana</option>
+            <option>High Court of Rajasthan</option>
+            <option>High Court of Sikkim</option>
+            <option>High Court of Tripura</option>
+            <option>High Court of Uttarakhand</option>
+            <option>Madras High Court</option>
+            <option>Patna High Court</option>
+            <option>High Court of Manipur</option>
+            <option>High Court of Nagaland</option>
+            <option>High Court of Himachal Pradesh</option>
+            <option>High Court of Punjab</option>
+            <option>High Court of Jammu & Kashmir</option>
+            <option>High Court of Assam</option>
+            <option>High Court of Orissa (Cuttack)</option>
         </select><br><br>
+
+    <!-- Hidden input to carry the real cino code (option value from ecourts) -->
+    <input type="hidden" id="cino_input" name="cino" value="">
 
         <label for="bench">Bench:</label><br>
         <select id="bench" name="bench" required>
@@ -167,6 +346,7 @@
         </select><br><br>
 
         <div class="search-criteria-tabs">
+            <button type="button" data-criteria="CNR Number" onclick="setActiveCriteria(this)">CNR Number</button>
             <button type="button" data-criteria="Party Name" onclick="setActiveCriteria(this)">Party Name</button>
             <button type="button" data-criteria="Case Number" onclick="setActiveCriteria(this)">Case Number</button>
             <button type="button" data-criteria="Filing Number" onclick="setActiveCriteria(this)">Filing Number</button>
