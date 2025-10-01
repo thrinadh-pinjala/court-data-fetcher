@@ -37,6 +37,7 @@ def get_captcha(session):
 
 
 def fetch_ecourts_data(session, case_details, captcha_input):
+    state = case_details.get('state', '').lower()
     """
     Submits the case details along with the solved CAPTCHA.
     """
@@ -59,17 +60,17 @@ def fetch_ecourts_data(session, case_details, captcha_input):
                 if name:
                     form_data[name] = inp.get('value', '')
 
-            # heuristics: find a select whose name contains 'cino' or 'court' and pick Andhra Pradesh
+            # heuristics: find a select whose name contains 'cino' or 'court' and pick the selected state
             cino_name = None
             for sel in sf_soup.find_all('select'):
                 name = sel.get('name') or ''
                 text = ' '.join(o.get_text(separator=' ').strip().lower() for o in sel.find_all('option'))
-                if 'andhra pradesh' in text and ('cino' in name.lower() or 'court' in name.lower() or 'state' in name.lower()):
+                if state in text and ('cino' in name.lower() or 'court' in name.lower() or 'state' in name.lower()):
                     cino_name = name
-                    # pick the first option that mentions andhra pradesh
+                    # pick the first option that mentions the selected state
                     chosen_val = None
                     for opt in sel.find_all('option'):
-                        if 'andhra pradesh' in opt.get_text(separator=' ').lower():
+                        if state in opt.get_text(separator=' ').lower():
                             chosen_val = opt.get('value')
                             break
                     if chosen_val:
@@ -164,6 +165,11 @@ def fetch_ecourts_data(session, case_details, captcha_input):
                         break
 
         if not results_table:
+            # Debug: save raw HTML to file for troubleshooting
+            debug_filename = f'debug_response_{int(time.time())}.html'
+            with open(debug_filename, 'w', encoding='utf-8') as f:
+                f.write(raw_html)
+            print(f"Debug: Saved raw HTML to {debug_filename} for troubleshooting.")
             return None, raw_html, "Could not find the case details table on the page."
 
         # Parse the first result row we can find

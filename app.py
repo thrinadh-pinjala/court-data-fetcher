@@ -36,11 +36,29 @@ def index():
 
 @app.route('/fetch', methods=['POST'])
 def fetch_captcha():
-    session['case_details'] = {
-        'type': request.form.get('case_type'),
-        'number': request.form.get('case_number'),
-        'year': request.form.get('case_year')
+    # Determine which search criteria is selected
+    search_criteria = None
+    for criteria in ['party_name', 'case_number', 'filing_number', 'advocate_name', 'fir_number', 'act', 'case_type_only']:
+        if request.form.get(criteria) is not None:
+            search_criteria = criteria
+            break
+
+    # Build case_details dictionary based on search criteria
+    case_details = {
+        'state': request.form.get('state'),
+        'bench': request.form.get('bench'),
+        'search_criteria': search_criteria,
+        'party_name': request.form.get('party_name'),
+        'case_type': request.form.get('case_type') or request.form.get('case_type_only'),
+        'case_number': request.form.get('case_number'),
+        'case_year': request.form.get('case_year'),
+        'filing_number': request.form.get('filing_number'),
+        'advocate_name': request.form.get('advocate_name'),
+        'fir_number': request.form.get('fir_number'),
+        'act': request.form.get('act'),
     }
+
+    session['case_details'] = case_details
     
     scraper_session = requests.Session()
     captcha_path, error = get_captcha(scraper_session)
@@ -73,9 +91,9 @@ def submit_captcha():
     
     # [cite_start]Store query and raw response in the database [cite: 1, 24]
     new_query = CaseQuery(
-        case_type=case_details.get('type'),
-        case_number=case_details.get('number'),
-        case_year=case_details.get('year'),
+        case_type=case_details.get('case_type') or case_details.get('case_type_only'),
+        case_number=case_details.get('case_number'),
+        case_year=case_details.get('case_year'),
         raw_response=raw_html
     )
     db.session.add(new_query)

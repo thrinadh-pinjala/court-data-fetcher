@@ -3,18 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <title>Court Case Fetcher</title>
+    <style>
+        .search-criteria-tabs {
+            margin-top: 10px;
+        }
+        .search-criteria-tabs button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .search-criteria-tabs button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .criteria-input {
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        // Bench options for each High Court (example data, can be expanded)
+        const benchOptions = {
+            "Andhra Pradesh": ["Select Bench", "Principal Bench", "Amaravati Bench", "Visakhapatnam Bench"],
+            "Karnataka": ["Select Bench", "Principal Bench", "Bangalore Bench", "Mysore Bench"],
+            "Maharashtra": ["Select Bench", "Principal Bench", "Mumbai Bench", "Nagpur Bench"],
+            "Tamil Nadu": ["Select Bench", "Principal Bench", "Chennai Bench", "Madurai Bench"],
+            "Delhi": ["Select Bench", "Principal Bench"],
+            "Uttar Pradesh": ["Select Bench", "Principal Bench", "Lucknow Bench", "Allahabad Bench"],
+            // Add other states and benches as needed
+        };
+
+        function updateBenchOptions() {
+            const stateSelect = document.getElementById('state');
+            const benchSelect = document.getElementById('bench');
+            const selectedState = stateSelect.value;
+
+            // Clear existing options
+            benchSelect.innerHTML = '';
+
+            if (benchOptions[selectedState]) {
+                benchOptions[selectedState].forEach(function(bench) {
+                    const option = document.createElement('option');
+                    option.value = bench === "Select Bench" ? "" : bench;
+                    option.text = bench;
+                    benchSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.text = 'Select Bench';
+                benchSelect.appendChild(option);
+            }
+        }
+
+        // Search criteria tabs logic
+        const criteriaFields = {
+            "Party Name": {label: "Party Name", id: "party_name", type: "text"},
+            "Case Number": [
+                {label: "Case Type", id: "case_type", type: "text"},
+                {label: "Case Number", id: "case_number", type: "text"},
+                {label: "Year", id: "case_year", type: "text"}
+            ],
+            "Filing Number": {label: "Filing Number", id: "filing_number", type: "text"},
+            "Advocate Name": {label: "Advocate Name", id: "advocate_name", type: "text"},
+            "FIR Number": {label: "FIR Number", id: "fir_number", type: "text"},
+            "Act": {label: "Act", id: "act", type: "text"},
+            "Case Type": {label: "Case Type", id: "case_type_only", type: "text"}
+        };
+
+        function setActiveCriteria(button) {
+            // Remove active class from all buttons
+            const buttons = document.querySelectorAll('.search-criteria-tabs button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            // Add active class to clicked button
+            button.classList.add('active');
+
+            // Update criteria inputs
+            const criteria = button.textContent;
+            const container = document.getElementById('criteria-inputs');
+            container.innerHTML = '';
+
+            if (Array.isArray(criteriaFields[criteria])) {
+                criteriaFields[criteria].forEach(field => {
+                    const label = document.createElement('label');
+                    label.setAttribute('for', field.id);
+                    label.textContent = field.label + ':';
+                    const input = document.createElement('input');
+                    input.type = field.type;
+                    input.id = field.id;
+                    input.name = field.id;
+                    input.required = true;
+                    container.appendChild(label);
+                    container.appendChild(document.createElement('br'));
+                    container.appendChild(input);
+                    container.appendChild(document.createElement('br'));
+                    container.appendChild(document.createElement('br'));
+                });
+            } else {
+                const field = criteriaFields[criteria];
+                const label = document.createElement('label');
+                label.setAttribute('for', field.id);
+                label.textContent = field.label + ':';
+                const input = document.createElement('input');
+                input.type = field.type;
+                input.id = field.id;
+                input.name = field.id;
+                input.required = true;
+                container.appendChild(label);
+                container.appendChild(document.createElement('br'));
+                container.appendChild(input);
+                container.appendChild(document.createElement('br'));
+            }
+        }
+
+        window.onload = function() {
+            updateBenchOptions();
+            // Set default active criteria to "Case Number"
+            const defaultButton = document.querySelector('.search-criteria-tabs button[data-criteria="Case Number"]');
+            if (defaultButton) {
+                setActiveCriteria(defaultButton);
+            }
+        };
+    </script>
 </head>
 <body>
     <h1>Indian Court Case Fetcher</h1>
     <form action="/fetch" method="post">
-        <label for="case_type">Case Type:</label><br>
-        <input type="text" id="case_type" name="case_type" required><br><br>
+        <label for="state">State/Court:</label><br>
+        <select id="state" name="state" required onchange="updateBenchOptions()">
+            <option value="">Select State</option>
+            <option value="Andhra Pradesh">Andhra Pradesh</option>
+            <option value="Karnataka">Karnataka</option>
+            <option value="Maharashtra">Maharashtra</option>
+            <option value="Tamil Nadu">Tamil Nadu</option>
+            <option value="Delhi">Delhi</option>
+            <option value="Uttar Pradesh">Uttar Pradesh</option>
+            <option value="West Bengal">West Bengal</option>
+            <option value="Gujarat">Gujarat</option>
+            <option value="Rajasthan">Rajasthan</option>
+            <option value="Madhya Pradesh">Madhya Pradesh</option>
+            <option value="Punjab">Punjab</option>
+            <option value="Haryana">Haryana</option>
+            <option value="Bihar">Bihar</option>
+            <option value="Odisha">Odisha</option>
+            <option value="Telangana">Telangana</option>
+            <option value="Kerala">Kerala</option>
+            <option value="Jharkhand">Jharkhand</option>
+            <option value="Chhattisgarh">Chhattisgarh</option>
+            <option value="Uttarakhand">Uttarakhand</option>
+            <option value="Himachal Pradesh">Himachal Pradesh</option>
+            <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+            <option value="Goa">Goa</option>
+            <option value="Puducherry">Puducherry</option>
+            <option value="Chandigarh">Chandigarh</option>
+            <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+            <option value="Lakshadweep">Lakshadweep</option>
+            <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+        </select><br><br>
 
-        <label for="case_number">Case Number:</label><br>
-        <input type="text" id="case_number" name="case_number" required><br><br>
+        <label for="bench">Bench:</label><br>
+        <select id="bench" name="bench" required>
+            <option value="">Select Bench</option>
+        </select><br><br>
 
-        <label for="case_year">Year:</label><br>
-        <input type="text" id="case_year" name="case_year" required><br><br>
+        <div class="search-criteria-tabs">
+            <button type="button" data-criteria="Party Name" onclick="setActiveCriteria(this)">Party Name</button>
+            <button type="button" data-criteria="Case Number" onclick="setActiveCriteria(this)">Case Number</button>
+            <button type="button" data-criteria="Filing Number" onclick="setActiveCriteria(this)">Filing Number</button>
+            <button type="button" data-criteria="Advocate Name" onclick="setActiveCriteria(this)">Advocate Name</button>
+            <button type="button" data-criteria="FIR Number" onclick="setActiveCriteria(this)">FIR Number</button>
+            <button type="button" data-criteria="Act" onclick="setActiveCriteria(this)">Act</button>
+            <button type="button" data-criteria="Case Type" onclick="setActiveCriteria(this)">Case Type</button>
+        </div>
+
+        <div id="criteria-inputs" class="criteria-input">
+            <!-- Dynamic inputs based on selected criteria will appear here -->
+        </div>
 
         <button type="submit">Fetch Case Details</button>
     </form>
